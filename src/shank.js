@@ -1,6 +1,7 @@
 'use strict';
 
 import {defaults} from 'lodash';
+import Positioner from './positioner';
 
 const DEFAULT_SETTINGS = {
 	placement: {
@@ -24,7 +25,7 @@ class Shank {
 
 		this._settings = defaults(DEFAULT_SETTINGS, settings);
 
-		this._setInitialPosition();
+		this.reposition();
 
 		if(!this._settings.noWatch) {
 			this.startWatching();
@@ -45,12 +46,12 @@ class Shank {
 	}
 
 	reposition() {
-		console.log('repositioning');
+		Positioner.position(this.anchor, this.anchored, this.placement);
 	}
 
 /*
-	Private Methods
- */
+*	Private Methods
+*/
 	_getElement(selector) {
 		if(typeof selector === 'string') {
 			return document.querySelector(selector);
@@ -62,16 +63,15 @@ class Shank {
 		throw new Error('Invalid argument. Expecting CSS selector or DOM element');
 	}
 
-	_setInitialPosition() {
-		document.body.appendChild(this.anchored);
-
-		this.anchored.style.position = 'absolute';
-		this.anchored.style.right = '0';
-		this.anchored.style.top = '0';
-	}
-
 	_watch(callback) {
+		if(this._settings.useRequestAnimationFrame) {
+			this._watchWithAnimationFrame(callback);
+		}
+	}
+	
+	_watchWithAnimationFrame(callback) {
 		let shimmedAnimationFrame =  window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
+		
 		function( callback ){
 			window.setTimeout(callback, 1000 / 60);
 		};
