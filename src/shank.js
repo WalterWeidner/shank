@@ -1,29 +1,35 @@
 'use strict';
 
-import {defaults} from 'lodash';
+import {assignIn} from 'lodash';
 import Positioner from './positioner';
 
 const DEFAULT_SETTINGS = {
 	placement: {
-		vertical: 'top',
-		horizontal: 'center'
+		anchor: {
+			vertical: 'bottom',
+			horizontal: 'left'
+		},
+		vessel: {
+			vertical: 'top',
+			horizontal: 'left'
+		}
 	}
 };
 
 class Shank {
-	constructor(anchor, anchored, settings) {
+	constructor(anchor, vessel, settings) {
 		if(!anchor) {
 			throw new Error('Missing argument \'anchor\'. Anchor must be supplied for Shank to work properly');
 		}
 
-		if(!anchored) {
+		if(!vessel) {
 			throw new Error('Missing argument \'anchored\'. Anchored must be supplied for Shank to work properly');
 		}
 
 		this.anchor = this._getElement(anchor);
-		this.anchored = this._getElement(anchored);
-
-		this._settings = defaults(DEFAULT_SETTINGS, settings);
+		this.vessel = this._getElement(vessel);
+		
+		this._settings = assignIn(DEFAULT_SETTINGS, settings);
 
 		this.reposition();
 
@@ -46,7 +52,7 @@ class Shank {
 	}
 
 	reposition() {
-		Positioner.position(this.anchor, this.anchored, this.placement);
+		Positioner.position(this.anchor, this.vessel, this.placement);
 	}
 
 /*

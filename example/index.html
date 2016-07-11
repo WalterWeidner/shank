@@ -18,8 +18,11 @@
 			color: #FFFFFF;
 			cursor: pointer;
 			font-size: 14px;
+			left: 300px;
 			line-height: 30px;
 			padding: 5px 15px;
+			position: absolute;
+			top: 300px;
 		}
 		
 		[dropdown-trigger]:focus {
@@ -80,7 +83,17 @@
 		var shank = new Shank(
 			'[dropdown-trigger]',
 			'[dropdown-list]', {
-				watchWithAnimationFrame: true
+				watchWithAnimationFrame: true,
+				placement: {
+					anchor: {
+						vertical: 'top',
+						horizontal: 'left'
+					},
+					vessel: {
+						vertical: 'top',
+						horizontal: 'right'
+					}
+				}
 			}
 		);
 	</script>
