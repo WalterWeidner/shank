@@ -1,20 +1,10 @@
 'use strict';
 
-import {assignIn} from 'lodash';
-import Positioner from './positioner';
+import {assign, assignIn} from 'lodash';
+import {default as Positioner, DEFAULT_SETTINGS as POSITIONER_DEFAULT_SETTINGS} from './positioner';
+import Utils from './utils';
 
-const DEFAULT_SETTINGS = {
-	placement: {
-		anchor: {
-			vertical: 'bottom',
-			horizontal: 'left'
-		},
-		vessel: {
-			vertical: 'top',
-			horizontal: 'left'
-		}
-	}
-};
+const DEFAULT_SETTINGS = assign({}, POSITIONER_DEFAULT_SETTINGS);
 
 class Shank {
 	constructor(anchor, vessel, settings) {
@@ -23,13 +13,14 @@ class Shank {
 		}
 
 		if(!vessel) {
-			throw new Error('Missing argument \'anchored\'. Anchored must be supplied for Shank to work properly');
+			throw new Error('Missing argument \'vessel\'. Vessel must be supplied for Shank to work properly');
 		}
 
-		this.anchor = this._getElement(anchor);
-		this.vessel = this._getElement(vessel);
+		this.anchor = Utils.getElement(anchor);
+		this.vessel = Utils.getElement(vessel);
 		
-		this._settings = assignIn(DEFAULT_SETTINGS, settings);
+		this._settings = assignIn({}, DEFAULT_SETTINGS, settings);
+		this._createPositioner();
 
 		this.reposition();
 
@@ -38,57 +29,63 @@ class Shank {
 		}
 	}
 
+	/**
+	 * Returns the current placement of the vessel
+	 * @return {object} Current placement of the vessel
+	 */
 	get placement() {
 		return this._settings.placement;
 	}
-
+	
+	/**
+	 * Enables auto repositioning of the vessel (useful for when the anchor moves)
+	 */
 	startWatching() {
 		this._watching = true;
 		this._watch(this.reposition);
 	}
 
+	/**
+	 * Disables auto repositioning of the vessel
+	 * @return {[type]} [description]
+	 */
 	stopWatching() {
 		this._watching = false;
 	}
 
+	/**
+	 * Forces the vessel to reposition immediately
+	 */
 	reposition() {
-		Positioner.position(this.anchor, this.vessel, this.placement);
+		if(this.anchor && this.anchor.offsetParent) {
+			this._positioner.position();
+		}
 	}
-
-/*
-*	Private Methods
-*/
-	_getElement(selector) {
-		if(typeof selector === 'string') {
-			return document.querySelector(selector);
-		}
-		if(typeof selector === 'object') {
-			return selector;
-		}
-
-		throw new Error('Invalid argument. Expecting CSS selector or DOM element');
+	
+	_createPositioner() {
+		var {placement, collisionContainer, collisionStrategy} = this._settings;
+		var positionerSettings = {placement, collisionContainer, collisionStrategy};
+		
+		this._positioner = new Positioner(this.anchor, this.vessel, positionerSettings);
 	}
 
 	_watch(callback) {
-		if(this._settings.useRequestAnimationFrame) {
+		if(this._settings.watchWithAnimationFrame) {
 			this._watchWithAnimationFrame(callback);
 		}
 	}
 	
 	_watchWithAnimationFrame(callback) {
-		let shimmedAnimationFrame =  window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame ||
+		let self = this;
+		let shimmedAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(callback){ window.setTimeout(callback, 1000 / 60); };
 		
-		function( callback ){
-			window.setTimeout(callback, 1000 / 60);
-		};
-
 		if(!this._watching) {
 			return;
 		}
 
 		shimmedAnimationFrame(() => {
-			callback();
-			this._watch(callback);
+			callback.call(self);
+			self._watchWithAnimationFrame(callback);
 		});
 	}
 }
