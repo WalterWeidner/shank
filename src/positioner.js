@@ -1,5 +1,5 @@
 'use strict';
-import {assignIn, cloneDeep} from 'lodash';
+import {assignIn, clone, cloneDeep} from 'lodash';
 import Utils from './utils';
 
 export const DEFAULT_SETTINGS = {
@@ -44,7 +44,7 @@ class Positioner {
 		
 		var collisions = this.detectCollisions(vesselOffsets);
 		if(collisions) {
-			vesselOffsets = this.fixCollisions(vesselOffsets, collisions);
+			vesselOffsets = this.fixCollisions(vesselOffsets, collisions, this._settings.collisionStrategy);
 		}
 		
 		this._vessel.style.left = vesselOffsets.left + 'px';
@@ -100,12 +100,25 @@ class Positioner {
 		return (collisions.bottom || collisions.left || collisions.right || collisions.top) ? collisions : undefined;
 	}
 	
-	fixCollisions(vesselOffsets, collisions) {
+	fixCollisions(vesselOffsets, collisions, collisionStrategy) {
+		var adjustedCollisionStrategy = clone(collisionStrategy);
+		var method = adjustedCollisionStrategy.shift();
+		if(!method) {
+			return vesselOffsets;
+		}
+		
 		var placement = this._settings.placement;
+		var newVesselOffsets = vesselOffsets;
 		
-		vesselOffsets = this.flip(placement, collisions);
+		placement = this.flip(placement, collisions);
+		newVesselOffsets = this._getNewOffsets(placement);
 		
-		return vesselOffsets;
+		var collisions = this.detectCollisions(newVesselOffsets);
+		if(collisions) {
+			return this.fixCollisions(vesselOffsets, collisions, adjustedCollisionStrategy);
+		}
+		
+		return newVesselOffsets;
 	}
 	
 	flip(placement, collisions) {
@@ -131,8 +144,8 @@ class Positioner {
 			adjustedPlacement.anchor.vertical = opposites[adjustedPlacement.anchor.vertical];
 			adjustedPlacement.vessel.vertical = opposites[adjustedPlacement.vessel.vertical];
 		}
-
-		return this._getNewOffsets(adjustedPlacement);
+		
+		return adjustedPlacement;
 	}
 }
 

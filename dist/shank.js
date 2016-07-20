@@ -15343,7 +15343,7 @@
 
 				var collisions = this.detectCollisions(vesselOffsets);
 				if (collisions) {
-					vesselOffsets = this.fixCollisions(vesselOffsets, collisions);
+					vesselOffsets = this.fixCollisions(vesselOffsets, collisions, this._settings.collisionStrategy);
 				}
 
 				this._vessel.style.left = vesselOffsets.left + 'px';
@@ -15405,12 +15405,25 @@
 			}
 		}, {
 			key: 'fixCollisions',
-			value: function fixCollisions(vesselOffsets, collisions) {
+			value: function fixCollisions(vesselOffsets, collisions, collisionStrategy) {
+				var adjustedCollisionStrategy = (0, _lodash.clone)(collisionStrategy);
+				var method = adjustedCollisionStrategy.shift();
+				if (!method) {
+					return vesselOffsets;
+				}
+
 				var placement = this._settings.placement;
+				var newVesselOffsets = vesselOffsets;
 
-				vesselOffsets = this.flip(placement, collisions);
+				placement = this.flip(placement, collisions);
+				newVesselOffsets = this._getNewOffsets(placement);
 
-				return vesselOffsets;
+				var collisions = this.detectCollisions(newVesselOffsets);
+				if (collisions) {
+					return this.fixCollisions(vesselOffsets, collisions, adjustedCollisionStrategy);
+				}
+
+				return newVesselOffsets;
 			}
 		}, {
 			key: 'flip',
@@ -15438,7 +15451,7 @@
 					adjustedPlacement.vessel.vertical = opposites[adjustedPlacement.vessel.vertical];
 				}
 
-				return this._getNewOffsets(adjustedPlacement);
+				return adjustedPlacement;
 			}
 		}]);
 
