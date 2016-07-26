@@ -1,27 +1,15 @@
 'use strict';
 
 import {assign, assignIn} from 'lodash';
-import {default as Positioner, DEFAULT_SETTINGS as POSITIONER_DEFAULT_SETTINGS} from './positioner';
+import Positioner from './positioner';
 import Utils from './utils';
 
-const DEFAULT_SETTINGS = assign({}, POSITIONER_DEFAULT_SETTINGS);
+const DEFAULT_SETTINGS = {};
 
-class Shank {
+class AutoPositioner extends Positioner {
 	constructor(anchor, vessel, settings) {
-		if(!anchor) {
-			throw new Error('Missing argument \'anchor\'. Anchor must be supplied for Shank to work properly');
-		}
-
-		if(!vessel) {
-			throw new Error('Missing argument \'vessel\'. Vessel must be supplied for Shank to work properly');
-		}
-
-		this.anchor = Utils.getElement(anchor);
-		this.vessel = Utils.getElement(vessel);
+		super(anchor, vessel, settings);
 		
-		this._settings = assignIn({}, DEFAULT_SETTINGS, settings);
-		this._createPositioner();
-
 		this.reposition();
 
 		if(!this._settings.noWatch) {
@@ -57,16 +45,9 @@ class Shank {
 	 * Forces the vessel to reposition immediately
 	 */
 	reposition() {
-		if(this.anchor && this.anchor.offsetParent) {
-			this._positioner.position();
+		if(this._anchor && this._anchor.offsetParent) {
+			this.position();
 		}
-	}
-	
-	_createPositioner() {
-		var {placement, collisionContainer, collisionStrategy} = this._settings;
-		var positionerSettings = {placement, collisionContainer, collisionStrategy};
-		
-		this._positioner = new Positioner(this.anchor, this.vessel, positionerSettings);
 	}
 
 	_watch(callback) {
@@ -90,5 +71,9 @@ class Shank {
 	}
 }
 
-window.Shank = Shank;
-export default Shank;
+window.Shank = {
+	AutoPositioner: AutoPositioner,
+	Positioner: Positioner
+};
+
+export default AutoPositioner;

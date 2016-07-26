@@ -15328,10 +15328,11 @@
 				throw new Error('Missing argument \'vessel\'. Vessel must be supplied for Shank to work properly');
 			}
 
+			this._settings = (0, _lodash.assignIn)({}, DEFAULT_SETTINGS, settings);
+
 			this._anchor = _utils2.default.getElement(anchor);
 			this._vessel = _utils2.default.getElement(vessel);
-
-			this._settings = (0, _lodash.assignIn)({}, DEFAULT_SETTINGS, settings);
+			this._collisionContainer = this._settings.collisionContainer ? _utils2.default.getElement(this._settings.collisionContainer) : undefined;
 		}
 
 		_createClass(Positioner, [{
@@ -15339,21 +15340,29 @@
 			value: function position() {
 				this._vessel.style.position = 'fixed';
 
-				var vesselOffsets = this._getNewOffsets(this._settings.placement);
+				var offsets = this._getCurrentOffsets();
+				var vesselOffsets = this._getNewOffsets(offsets.anchor, this._settings.placement);
 
 				var collisions = this.detectCollisions(vesselOffsets);
 				if (collisions) {
-					vesselOffsets = this.fixCollisions(vesselOffsets, collisions, this._settings.collisionStrategy);
+					vesselOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
 				}
 
 				this._vessel.style.left = vesselOffsets.left + 'px';
 				this._vessel.style.top = vesselOffsets.top + 'px';
 			}
 		}, {
+			key: '_getCurrentOffsets',
+			value: function _getCurrentOffsets() {
+				return {
+					anchor: _utils2.default.getOffsets(this._anchor),
+					collisionContainer: this._collisionContainer ? _utils2.default.getOffsets(this._collisionContainer) : null,
+					vessel: _utils2.default.getOffsets(this._vessel)
+				};
+			}
+		}, {
 			key: '_getNewOffsets',
-			value: function _getNewOffsets(placement) {
-				var anchorOffsets = this._anchor.getBoundingClientRect();
-
+			value: function _getNewOffsets(anchorOffsets, placement) {
 				var bottom = anchorOffsets.bottom;
 				var left = anchorOffsets.left;
 				var right = anchorOffsets.right;
@@ -15385,14 +15394,7 @@
 		}, {
 			key: 'detectCollisions',
 			value: function detectCollisions(vesselOffsets) {
-				var container = _utils2.default.getElement(this._settings.collisionContainer);
-
-				var containerOffset;
-				if (container === window) {
-					containerOffset = { bottom: window.innerHeight, left: 0, right: window.innerWidth, top: 0 };
-				} else {
-					containerOffset = container.getBoundingClientRect();
-				}
+				var containerOffset = _utils2.default.getOffsets(this._collisionContainer);
 
 				var collisions = {
 					bottom: containerOffset.bottom < vesselOffsets.bottom || containerOffset.bottom < vesselOffsets.top,
@@ -15405,29 +15407,34 @@
 			}
 		}, {
 			key: 'fixCollisions',
-			value: function fixCollisions(vesselOffsets, collisions, collisionStrategy) {
+			value: function fixCollisions(offsets, collisions, collisionStrategy) {
 				var adjustedCollisionStrategy = (0, _lodash.clone)(collisionStrategy);
+
+				var collisionFixers = {
+					flip: this.flip,
+					slide: this.slide
+				};
+
 				var method = adjustedCollisionStrategy.shift();
-				if (!method) {
-					return vesselOffsets;
+				if (!method || typeof collisionFixers[method] !== 'function') {
+					throw new Error('Collision strategy ' + method + ' not found');
 				}
 
 				var placement = this._settings.placement;
-				var newVesselOffsets = vesselOffsets;
+				var newOffsets = (0, _lodash.cloneDeep)(offsets);
 
-				placement = this.flip(placement, collisions);
-				newVesselOffsets = this._getNewOffsets(placement);
+				var newVesselOffsets = collisionFixers[method].call(this, offsets, placement, collisions);
 
 				var collisions = this.detectCollisions(newVesselOffsets);
 				if (collisions) {
-					return this.fixCollisions(vesselOffsets, collisions, adjustedCollisionStrategy);
+					return this.fixCollisions(offsets, collisions, adjustedCollisionStrategy);
 				}
 
 				return newVesselOffsets;
 			}
 		}, {
 			key: 'flip',
-			value: function flip(placement, collisions) {
+			value: function flip(offsets, placement, collisions) {
 				var adjustedPlacement = (0, _lodash.cloneDeep)(placement);
 
 				var flipHorizontally = collisions.right && !collisions.left || collisions.left && !collisions.right;
@@ -15451,7 +15458,29 @@
 					adjustedPlacement.vessel.vertical = opposites[adjustedPlacement.vessel.vertical];
 				}
 
-				return adjustedPlacement;
+				return this._getNewOffsets(offsets.anchor, adjustedPlacement);
+			}
+		}, {
+			key: 'slide',
+			value: function slide(offsets, placement, collisions) {
+				var newVesselOffsets = (0, _lodash.cloneDeep)(offsets.vessel);
+				if (collisions.left && !collisions.right) {
+					newVesselOffsets.left = offsets.collisionContainer.left;
+					newVesselOffsets.right = newVesselOffsets.left + newVesselOffsets.width;
+				} else if (collisions.right && !collisions.left) {
+					newVesselOffsets.left = offsets.collisionContainer.right - offsets.vessel.width;
+					newVesselOffsets.right = newVesselOffsets.right;
+				}
+
+				if (collisions.top && !collisions.bottom) {
+					newVesselOffsets.top = offsets.collisionContainer.top;
+					newVesselOffsets.bottom = newVesselOffsets.top + newVesselOffsets.height;
+				} else if (collisions.bottom && !collisions.top) {
+					newVesselOffsets.bottom = offsets.collisionContainer.bottom;
+					newVesselOffsets.top = newVesselOffsets.top - newVesselOffsets.height;
+				}
+
+				return newVesselOffsets;
 			}
 		}]);
 
@@ -15485,6 +15514,13 @@
 			}
 
 			throw new Error('Invalid argument. Expecting CSS selector or DOM element');
+		},
+		getOffsets: function getOffsets(element) {
+			if (element === window) {
+				return { bottom: window.innerHeight, left: 0, right: window.innerWidth, top: 0 };
+			}
+
+			return element.getBoundingClientRect();
 		}
 	};
 

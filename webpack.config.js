@@ -1,7 +1,7 @@
 var path = require('path');
 
 module.exports = {
-	entry: './src/shank.js',
+	entry: './src/autoPositioner.js',
 	output: {
 		path: path.resolve(__dirname, 'dist/'),
 		filename: 'shank.js'
