@@ -1,4 +1,14 @@
-/******/ (function(modules) { // webpackBootstrap
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(this, function() {
+return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
 
@@ -50,13 +60,38 @@
 		value: true
 	});
 
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	var _lodash = __webpack_require__(1);
-
-	var _positioner = __webpack_require__(3);
+	var _positioner = __webpack_require__(1);
 
 	var _positioner2 = _interopRequireDefault(_positioner);
+
+	var _autoPositioner = __webpack_require__(5);
+
+	var _autoPositioner2 = _interopRequireDefault(_autoPositioner);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	// export {Positioner, AutoPositioner};
+
+	exports.default = {
+		Positioner: _positioner2.default,
+		AutoPositioner: _autoPositioner2.default
+	};
+	module.exports = exports['default'];
+
+/***/ },
+/* 1 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+		value: true
+	});
+	exports.DEFAULT_SETTINGS = undefined;
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _lodash = __webpack_require__(2);
 
 	var _utils = __webpack_require__(4);
 
@@ -66,11 +101,24 @@
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var DEFAULT_SETTINGS = (0, _lodash.assign)({}, _positioner.DEFAULT_SETTINGS);
+	var DEFAULT_SETTINGS = exports.DEFAULT_SETTINGS = {
+		placement: {
+			anchor: {
+				vertical: 'bottom',
+				horizontal: 'left'
+			},
+			vessel: {
+				vertical: 'top',
+				horizontal: 'left'
+			}
+		},
+		collisionContainer: 'window',
+		collisionStrategy: ['flip', 'slide', 'hide']
+	};
 
-	var Shank = function () {
-		function Shank(anchor, vessel, settings) {
-			_classCallCheck(this, Shank);
+	var Positioner = function () {
+		function Positioner(anchor, vessel, settings) {
+			_classCallCheck(this, Positioner);
 
 			if (!anchor) {
 				throw new Error('Missing argument \'anchor\'. Anchor must be supplied for Shank to work properly');
@@ -80,110 +128,170 @@
 				throw new Error('Missing argument \'vessel\'. Vessel must be supplied for Shank to work properly');
 			}
 
-			this.anchor = _utils2.default.getElement(anchor);
-			this.vessel = _utils2.default.getElement(vessel);
-
 			this._settings = (0, _lodash.assignIn)({}, DEFAULT_SETTINGS, settings);
-			this._createPositioner();
 
-			this.reposition();
-
-			if (!this._settings.noWatch) {
-				this.startWatching();
-			}
+			this._anchor = _utils2.default.getElement(anchor);
+			this._vessel = _utils2.default.getElement(vessel);
+			this._collisionContainer = this._settings.collisionContainer ? _utils2.default.getElement(this._settings.collisionContainer) : undefined;
 		}
 
-		/**
-	  * Returns the current placement of the vessel
-	  * @return {object} Current placement of the vessel
-	  */
+		_createClass(Positioner, [{
+			key: 'position',
+			value: function position() {
+				this._vessel.style.position = 'fixed';
 
+				var offsets = this._getCurrentOffsets();
+				var vesselOffsets = this._getNewOffsets(offsets.anchor, this._settings.placement);
 
-		_createClass(Shank, [{
-			key: 'startWatching',
-
-
-			/**
-	   * Enables auto repositioning of the vessel (useful for when the anchor moves)
-	   */
-			value: function startWatching() {
-				this._watching = true;
-				this._watch(this.reposition);
-			}
-
-			/**
-	   * Disables auto repositioning of the vessel
-	   * @return {[type]} [description]
-	   */
-
-		}, {
-			key: 'stopWatching',
-			value: function stopWatching() {
-				this._watching = false;
-			}
-
-			/**
-	   * Forces the vessel to reposition immediately
-	   */
-
-		}, {
-			key: 'reposition',
-			value: function reposition() {
-				if (this.anchor && this.anchor.offsetParent) {
-					this._positioner.position();
+				var collisions = this.detectCollisions(vesselOffsets);
+				if (collisions) {
+					vesselOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
 				}
+
+				this._vessel.style.left = vesselOffsets.left + 'px';
+				this._vessel.style.top = vesselOffsets.top + 'px';
 			}
 		}, {
-			key: '_createPositioner',
-			value: function _createPositioner() {
-				var _settings = this._settings;
-				var placement = _settings.placement;
-				var collisionContainer = _settings.collisionContainer;
-				var collisionStrategy = _settings.collisionStrategy;
-
-				var positionerSettings = { placement: placement, collisionContainer: collisionContainer, collisionStrategy: collisionStrategy };
-
-				this._positioner = new _positioner2.default(this.anchor, this.vessel, positionerSettings);
+			key: '_getCurrentOffsets',
+			value: function _getCurrentOffsets() {
+				return {
+					anchor: _utils2.default.getOffsets(this._anchor),
+					collisionContainer: this._collisionContainer ? _utils2.default.getOffsets(this._collisionContainer) : null,
+					vessel: _utils2.default.getOffsets(this._vessel)
+				};
 			}
 		}, {
-			key: '_watch',
-			value: function _watch(callback) {
-				if (this._settings.watchWithAnimationFrame) {
-					this._watchWithAnimationFrame(callback);
+			key: '_getNewOffsets',
+			value: function _getNewOffsets(anchorOffsets, placement) {
+				var bottom = anchorOffsets.bottom;
+				var left = anchorOffsets.left;
+				var right = anchorOffsets.right;
+				var top = anchorOffsets.top;
+
+				var newOffsets = { bottom: bottom, left: left, right: right, top: top };
+
+				if (placement.anchor.vertical === 'bottom') {
+					newOffsets.top = newOffsets.bottom;
 				}
+
+				if (placement.anchor.horizontal === 'right') {
+					newOffsets.left = newOffsets.right;
+				}
+
+				if (placement.vessel.vertical === 'bottom') {
+					newOffsets.top -= this._vessel.offsetHeight;
+				}
+
+				if (placement.vessel.horizontal === 'right') {
+					newOffsets.left -= this._vessel.offsetWidth;
+				}
+
+				newOffsets.bottom = newOffsets.top + this._vessel.offsetHeight;
+				newOffsets.right = newOffsets.left + this._vessel.offsetWidth;
+
+				return newOffsets;
 			}
 		}, {
-			key: '_watchWithAnimationFrame',
-			value: function _watchWithAnimationFrame(callback) {
-				var self = this;
-				var shimmedAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function (callback) {
-					window.setTimeout(callback, 1000 / 60);
+			key: 'detectCollisions',
+			value: function detectCollisions(vesselOffsets) {
+				var containerOffset = _utils2.default.getOffsets(this._collisionContainer);
+
+				var collisions = {
+					bottom: containerOffset.bottom < vesselOffsets.bottom || containerOffset.bottom < vesselOffsets.top,
+					left: containerOffset.left > vesselOffsets.left || containerOffset.left > vesselOffsets.right,
+					right: containerOffset.right < vesselOffsets.right || containerOffset.right < vesselOffsets.left,
+					top: containerOffset.top > vesselOffsets.top || containerOffset.top > vesselOffsets.bottom
 				};
 
-				if (!this._watching) {
-					return;
-				}
-
-				shimmedAnimationFrame(function () {
-					callback.call(self);
-					self._watchWithAnimationFrame(callback);
-				});
+				return collisions.bottom || collisions.left || collisions.right || collisions.top ? collisions : undefined;
 			}
 		}, {
-			key: 'placement',
-			get: function get() {
-				return this._settings.placement;
+			key: 'fixCollisions',
+			value: function fixCollisions(offsets, collisions, collisionStrategy) {
+				var adjustedCollisionStrategy = (0, _lodash.clone)(collisionStrategy);
+
+				var collisionFixers = {
+					flip: this.flip,
+					slide: this.slide
+				};
+
+				var method = adjustedCollisionStrategy.shift();
+				if (!method || typeof collisionFixers[method] !== 'function') {
+					throw new Error('Collision strategy ' + method + ' not found');
+				}
+
+				var placement = this._settings.placement;
+				var newOffsets = (0, _lodash.cloneDeep)(offsets);
+
+				var newVesselOffsets = collisionFixers[method].call(this, offsets, placement, collisions);
+
+				var collisions = this.detectCollisions(newVesselOffsets);
+				if (collisions) {
+					return this.fixCollisions(offsets, collisions, adjustedCollisionStrategy);
+				}
+
+				return newVesselOffsets;
+			}
+		}, {
+			key: 'flip',
+			value: function flip(offsets, placement, collisions) {
+				var adjustedPlacement = (0, _lodash.cloneDeep)(placement);
+
+				var flipHorizontally = collisions.right && !collisions.left || collisions.left && !collisions.right;
+				var flipVertically = collisions.bottom && !collisions.top || collisions.top && !collisions.bottom;
+
+				var opposites = {
+					bottom: 'top',
+					center: 'center',
+					left: 'right',
+					right: 'left',
+					top: 'bottom'
+				};
+
+				if (flipHorizontally) {
+					adjustedPlacement.anchor.horizontal = opposites[adjustedPlacement.anchor.horizontal];
+					adjustedPlacement.vessel.horizontal = opposites[adjustedPlacement.vessel.horizontal];
+				}
+
+				if (flipVertically) {
+					adjustedPlacement.anchor.vertical = opposites[adjustedPlacement.anchor.vertical];
+					adjustedPlacement.vessel.vertical = opposites[adjustedPlacement.vessel.vertical];
+				}
+
+				return this._getNewOffsets(offsets.anchor, adjustedPlacement);
+			}
+		}, {
+			key: 'slide',
+			value: function slide(offsets, placement, collisions) {
+				var newVesselOffsets = (0, _lodash.cloneDeep)(offsets.vessel);
+
+				if (collisions.left && !collisions.right) {
+					newVesselOffsets.left = offsets.collisionContainer.left;
+					newVesselOffsets.right = newVesselOffsets.left + newVesselOffsets.width;
+				} else if (collisions.right && !collisions.left) {
+					newVesselOffsets.left = offsets.collisionContainer.right - offsets.vessel.width;
+					newVesselOffsets.right = newVesselOffsets.right;
+				}
+
+				if (collisions.top && !collisions.bottom) {
+					newVesselOffsets.top = offsets.collisionContainer.top;
+					newVesselOffsets.bottom = newVesselOffsets.top + newVesselOffsets.height;
+				} else if (collisions.bottom && !collisions.top) {
+					newVesselOffsets.bottom = offsets.collisionContainer.bottom;
+					newVesselOffsets.top = newVesselOffsets.top - newVesselOffsets.height;
+				}
+
+				return newVesselOffsets;
 			}
 		}]);
 
-		return Shank;
+		return Positioner;
 	}();
 
-	window.Shank = Shank;
-	exports.default = Shank;
+	exports.default = Positioner;
 
 /***/ },
-/* 1 */
+/* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(module, global) {/**
@@ -15260,10 +15368,10 @@
 	  }
 	}.call(this));
 
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(2)(module), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3)(module), (function() { return this; }())))
 
 /***/ },
-/* 2 */
+/* 3 */
 /***/ function(module, exports) {
 
 	module.exports = function(module) {
@@ -15277,217 +15385,6 @@
 		return module;
 	}
 
-
-/***/ },
-/* 3 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	Object.defineProperty(exports, "__esModule", {
-		value: true
-	});
-	exports.DEFAULT_SETTINGS = undefined;
-
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	var _lodash = __webpack_require__(1);
-
-	var _utils = __webpack_require__(4);
-
-	var _utils2 = _interopRequireDefault(_utils);
-
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	var DEFAULT_SETTINGS = exports.DEFAULT_SETTINGS = {
-		placement: {
-			anchor: {
-				vertical: 'bottom',
-				horizontal: 'left'
-			},
-			vessel: {
-				vertical: 'top',
-				horizontal: 'left'
-			}
-		},
-		collisionContainer: 'window',
-		collisionStrategy: ['flip', 'slide', 'hide']
-	};
-
-	var Positioner = function () {
-		function Positioner(anchor, vessel, settings) {
-			_classCallCheck(this, Positioner);
-
-			if (!anchor) {
-				throw new Error('Missing argument \'anchor\'. Anchor must be supplied for Shank to work properly');
-			}
-
-			if (!vessel) {
-				throw new Error('Missing argument \'vessel\'. Vessel must be supplied for Shank to work properly');
-			}
-
-			this._settings = (0, _lodash.assignIn)({}, DEFAULT_SETTINGS, settings);
-
-			this._anchor = _utils2.default.getElement(anchor);
-			this._vessel = _utils2.default.getElement(vessel);
-			this._collisionContainer = this._settings.collisionContainer ? _utils2.default.getElement(this._settings.collisionContainer) : undefined;
-		}
-
-		_createClass(Positioner, [{
-			key: 'position',
-			value: function position() {
-				this._vessel.style.position = 'fixed';
-
-				var offsets = this._getCurrentOffsets();
-				var vesselOffsets = this._getNewOffsets(offsets.anchor, this._settings.placement);
-
-				var collisions = this.detectCollisions(vesselOffsets);
-				if (collisions) {
-					vesselOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
-				}
-
-				this._vessel.style.left = vesselOffsets.left + 'px';
-				this._vessel.style.top = vesselOffsets.top + 'px';
-			}
-		}, {
-			key: '_getCurrentOffsets',
-			value: function _getCurrentOffsets() {
-				return {
-					anchor: _utils2.default.getOffsets(this._anchor),
-					collisionContainer: this._collisionContainer ? _utils2.default.getOffsets(this._collisionContainer) : null,
-					vessel: _utils2.default.getOffsets(this._vessel)
-				};
-			}
-		}, {
-			key: '_getNewOffsets',
-			value: function _getNewOffsets(anchorOffsets, placement) {
-				var bottom = anchorOffsets.bottom;
-				var left = anchorOffsets.left;
-				var right = anchorOffsets.right;
-				var top = anchorOffsets.top;
-
-				var newOffsets = { bottom: bottom, left: left, right: right, top: top };
-
-				if (placement.anchor.vertical === 'bottom') {
-					newOffsets.top = newOffsets.bottom;
-				}
-
-				if (placement.anchor.horizontal === 'right') {
-					newOffsets.left = newOffsets.right;
-				}
-
-				if (placement.vessel.vertical === 'bottom') {
-					newOffsets.top -= this._vessel.offsetHeight;
-				}
-
-				if (placement.vessel.horizontal === 'right') {
-					newOffsets.left -= this._vessel.offsetWidth;
-				}
-
-				newOffsets.bottom = newOffsets.top + this._vessel.offsetHeight;
-				newOffsets.right = newOffsets.left + this._vessel.offsetWidth;
-
-				return newOffsets;
-			}
-		}, {
-			key: 'detectCollisions',
-			value: function detectCollisions(vesselOffsets) {
-				var containerOffset = _utils2.default.getOffsets(this._collisionContainer);
-
-				var collisions = {
-					bottom: containerOffset.bottom < vesselOffsets.bottom || containerOffset.bottom < vesselOffsets.top,
-					left: containerOffset.left > vesselOffsets.left || containerOffset.left > vesselOffsets.right,
-					right: containerOffset.right < vesselOffsets.right || containerOffset.right < vesselOffsets.left,
-					top: containerOffset.top > vesselOffsets.top || containerOffset.top > vesselOffsets.bottom
-				};
-
-				return collisions.bottom || collisions.left || collisions.right || collisions.top ? collisions : undefined;
-			}
-		}, {
-			key: 'fixCollisions',
-			value: function fixCollisions(offsets, collisions, collisionStrategy) {
-				var adjustedCollisionStrategy = (0, _lodash.clone)(collisionStrategy);
-
-				var collisionFixers = {
-					flip: this.flip,
-					slide: this.slide
-				};
-
-				var method = adjustedCollisionStrategy.shift();
-				if (!method || typeof collisionFixers[method] !== 'function') {
-					throw new Error('Collision strategy ' + method + ' not found');
-				}
-
-				var placement = this._settings.placement;
-				var newOffsets = (0, _lodash.cloneDeep)(offsets);
-
-				var newVesselOffsets = collisionFixers[method].call(this, offsets, placement, collisions);
-
-				var collisions = this.detectCollisions(newVesselOffsets);
-				if (collisions) {
-					return this.fixCollisions(offsets, collisions, adjustedCollisionStrategy);
-				}
-
-				return newVesselOffsets;
-			}
-		}, {
-			key: 'flip',
-			value: function flip(offsets, placement, collisions) {
-				var adjustedPlacement = (0, _lodash.cloneDeep)(placement);
-
-				var flipHorizontally = collisions.right && !collisions.left || collisions.left && !collisions.right;
-				var flipVertically = collisions.bottom && !collisions.top || collisions.top && !collisions.bottom;
-
-				var opposites = {
-					bottom: 'top',
-					center: 'center',
-					left: 'right',
-					right: 'left',
-					top: 'bottom'
-				};
-
-				if (flipHorizontally) {
-					adjustedPlacement.anchor.horizontal = opposites[adjustedPlacement.anchor.horizontal];
-					adjustedPlacement.vessel.horizontal = opposites[adjustedPlacement.vessel.horizontal];
-				}
-
-				if (flipVertically) {
-					adjustedPlacement.anchor.vertical = opposites[adjustedPlacement.anchor.vertical];
-					adjustedPlacement.vessel.vertical = opposites[adjustedPlacement.vessel.vertical];
-				}
-
-				return this._getNewOffsets(offsets.anchor, adjustedPlacement);
-			}
-		}, {
-			key: 'slide',
-			value: function slide(offsets, placement, collisions) {
-				var newVesselOffsets = (0, _lodash.cloneDeep)(offsets.vessel);
-				if (collisions.left && !collisions.right) {
-					newVesselOffsets.left = offsets.collisionContainer.left;
-					newVesselOffsets.right = newVesselOffsets.left + newVesselOffsets.width;
-				} else if (collisions.right && !collisions.left) {
-					newVesselOffsets.left = offsets.collisionContainer.right - offsets.vessel.width;
-					newVesselOffsets.right = newVesselOffsets.right;
-				}
-
-				if (collisions.top && !collisions.bottom) {
-					newVesselOffsets.top = offsets.collisionContainer.top;
-					newVesselOffsets.bottom = newVesselOffsets.top + newVesselOffsets.height;
-				} else if (collisions.bottom && !collisions.top) {
-					newVesselOffsets.bottom = offsets.collisionContainer.bottom;
-					newVesselOffsets.top = newVesselOffsets.top - newVesselOffsets.height;
-				}
-
-				return newVesselOffsets;
-			}
-		}]);
-
-		return Positioner;
-	}();
-
-	exports.default = Positioner;
 
 /***/ },
 /* 4 */
@@ -15523,6 +15420,134 @@
 			return element.getBoundingClientRect();
 		}
 	};
+	module.exports = exports['default'];
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+		value: true
+	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _lodash = __webpack_require__(2);
+
+	var _positioner = __webpack_require__(1);
+
+	var _positioner2 = _interopRequireDefault(_positioner);
+
+	var _utils = __webpack_require__(4);
+
+	var _utils2 = _interopRequireDefault(_utils);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var DEFAULT_SETTINGS = {};
+
+	var AutoPositioner = function (_Positioner) {
+		_inherits(AutoPositioner, _Positioner);
+
+		function AutoPositioner(anchor, vessel, settings) {
+			_classCallCheck(this, AutoPositioner);
+
+			var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(AutoPositioner).call(this, anchor, vessel, settings));
+
+			_this.reposition();
+
+			if (!_this._settings.noWatch) {
+				_this.startWatching();
+			}
+			return _this;
+		}
+
+		/**
+	  * Returns the current placement of the vessel
+	  * @return {object} Current placement of the vessel
+	  */
+
+
+		_createClass(AutoPositioner, [{
+			key: 'startWatching',
+
+
+			/**
+	   * Enables auto repositioning of the vessel (useful for when the anchor moves)
+	   */
+			value: function startWatching() {
+				this._watching = true;
+				this._watch(this.reposition);
+			}
+
+			/**
+	   * Disables auto repositioning of the vessel
+	   * @return {[type]} [description]
+	   */
+
+		}, {
+			key: 'stopWatching',
+			value: function stopWatching() {
+				this._watching = false;
+			}
+
+			/**
+	   * Forces the vessel to reposition immediately
+	   */
+
+		}, {
+			key: 'reposition',
+			value: function reposition() {
+				if (this._anchor && this._anchor.offsetParent) {
+					this.position();
+				}
+			}
+		}, {
+			key: '_watch',
+			value: function _watch(callback) {
+				if (this._settings.watchWithAnimationFrame) {
+					this._watchWithAnimationFrame(callback);
+				}
+			}
+		}, {
+			key: '_watchWithAnimationFrame',
+			value: function _watchWithAnimationFrame(callback) {
+				var self = this;
+				var shimmedAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function (callback) {
+					window.setTimeout(callback, 1000 / 60);
+				};
+
+				if (!this._watching) {
+					return;
+				}
+
+				shimmedAnimationFrame(function () {
+					callback.call(self);
+					self._watchWithAnimationFrame(callback);
+				});
+			}
+		}, {
+			key: 'placement',
+			get: function get() {
+				return this._settings.placement;
+			}
+		}]);
+
+		return AutoPositioner;
+	}(_positioner2.default);
+
+	exports.default = AutoPositioner;
+	module.exports = exports['default'];
 
 /***/ }
-/******/ ]);
+/******/ ])
+});
+;

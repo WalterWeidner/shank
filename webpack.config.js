@@ -1,10 +1,13 @@
 var path = require('path');
 
 module.exports = {
-	entry: './src/autoPositioner.js',
+	entry: './src/index.js',
 	output: {
 		path: path.resolve(__dirname, 'dist/'),
-		filename: 'shank.js'
+		filename: 'shank.js',
+		libraryName: 'Shank',
+		libraryTarget: 'umd',
+		umdNamedDefine: true
 	},
 	module: {
 		loaders: [{
@@ -17,11 +20,6 @@ module.exports = {
 
 			// Only run `.js` files through Babel
 			test: /\.js$/,
-
-			// Options to configure babel with
-			query: {
-				presets: ['es2015']
-			}
 		}]
 	},
 	devServer: {

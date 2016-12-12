@@ -71,9 +71,4 @@ class AutoPositioner extends Positioner {
 	}
 }
 
-window.Shank = {
-	AutoPositioner: AutoPositioner,
-	Positioner: Positioner
-};
-
 export default AutoPositioner;
