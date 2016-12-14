@@ -1,6 +1,6 @@
 {
   "name": "shank",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Body positioner for DOM elements",
   "main": "dist/shank.js",
   "scripts": {
