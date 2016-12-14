@@ -1,11 +1,13 @@
 var path = require('path');
 
+var LodashModuleReplacementPlugin = require('lodash-webpack-plugin');
+
 module.exports = {
 	entry: './src/index.js',
 	output: {
-		path: path.resolve(__dirname, 'dist/'),
+		path: './dist',
 		filename: 'shank.js',
-		libraryName: 'Shank',
+		library: 'Shank',
 		libraryTarget: 'umd',
 		umdNamedDefine: true
 	},
@@ -13,17 +15,14 @@ module.exports = {
 		loaders: [{
 			loader: 'babel',
 
-			// Skip any files outside of your project's `src` directory
 			include: [
 				path.resolve(__dirname, 'src/'),
 			],
 
-			// Only run `.js` files through Babel
 			test: /\.js$/,
 		}]
 	},
-	devServer: {
-		contentBase: path.resolve(__dirname, 'example'),
-		publicPath: '/dist'
-	}
+	plugins: [
+		new LodashModuleReplacementPlugin()
+	]
 };
