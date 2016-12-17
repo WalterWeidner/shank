@@ -1,4 +1,5 @@
 var path = require('path');
+var webpack = require('webpack');
 
 var LodashModuleReplacementPlugin = require('lodash-webpack-plugin');
 
@@ -23,6 +24,7 @@ module.exports = {
 		}]
 	},
 	plugins: [
-		new LodashModuleReplacementPlugin()
+		new LodashModuleReplacementPlugin(),
+		new webpack.optimize.UglifyJsPlugin()
 	]
 };
