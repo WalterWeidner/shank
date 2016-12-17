@@ -89,9 +89,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 	exports.DEFAULT_SETTINGS = undefined;
 
-	var _cloneDeep2 = __webpack_require__(2);
+	var _cloneDeep3 = __webpack_require__(2);
 
-	var _cloneDeep3 = _interopRequireDefault(_cloneDeep2);
+	var _cloneDeep4 = _interopRequireDefault(_cloneDeep3);
 
 	var _clone2 = __webpack_require__(44);
 
@@ -111,7 +111,27 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var DEFAULT_SETTINGS = exports.DEFAULT_SETTINGS = {
+	var OPPOSITES = {
+		bottom: 'top',
+		center: 'center',
+		left: 'right',
+		right: 'left',
+		top: 'bottom'
+	};
+
+	var DEFAULT_ADJUSTMENT = {
+		horizontal: 0,
+		vertical: 0
+	};
+
+	var DEFAULT_SETTINGS = {
+		anchorAdjustment: DEFAULT_ADJUSTMENT,
+		collisionContainer: 'window',
+		collisionStrategy: ['flip', 'slide'],
+		offsets: {
+			vertical: 0,
+			horizontal: 0
+		},
 		placement: {
 			anchor: {
 				vertical: 'bottom',
@@ -122,8 +142,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				horizontal: 'left'
 			}
 		},
-		collisionContainer: 'window',
-		collisionStrategy: ['flip', 'slide', 'hide']
+		vesselAdjustment: DEFAULT_ADJUSTMENT
 	};
 
 	var Positioner = function () {
@@ -151,15 +170,16 @@ return /******/ (function(modules) { // webpackBootstrap
 				this._vessel.style.position = 'fixed';
 
 				var offsets = this._getCurrentOffsets();
-				var vesselOffsets = this._getNewOffsets(offsets.anchor, this._settings.placement);
+				var newOffsets = this._adjustOffsets(offsets, this.adjustments);
+				newOffsets = this._getNewOffsets(newOffsets, this._settings.placement);
 
-				var collisions = this.detectCollisions(vesselOffsets);
+				var collisions = this.detectCollisions(newOffsets.vessel);
 				if (collisions) {
-					vesselOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
+					newOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
 				}
 
-				this._vessel.style.left = vesselOffsets.left + 'px';
-				this._vessel.style.top = vesselOffsets.top + 'px';
+				this._vessel.style.left = newOffsets.vessel.left + 'px';
+				this._vessel.style.top = newOffsets.vessel.top + 'px';
 			}
 		}, {
 			key: '_getCurrentOffsets',
@@ -171,35 +191,86 @@ return /******/ (function(modules) { // webpackBootstrap
 				};
 			}
 		}, {
-			key: '_getNewOffsets',
-			value: function _getNewOffsets(anchorOffsets, placement) {
-				var bottom = anchorOffsets.bottom,
-				    left = anchorOffsets.left,
-				    right = anchorOffsets.right,
-				    top = anchorOffsets.top;
+			key: '_invertAdjustments',
+			value: function _invertAdjustments(adjustments, direction) {
+				var _cloneDeep2 = (0, _cloneDeep4.default)(adjustments),
+				    anchorAdjustment = _cloneDeep2.anchorAdjustment,
+				    vesselAdjustment = _cloneDeep2.vesselAdjustment;
 
-				var newOffsets = { bottom: bottom, left: left, right: right, top: top };
+				if (direction === 'vertical') {
+					anchorAdjustment.vertical = -anchorAdjustment.vertical;
+					vesselAdjustment.vertical = -vesselAdjustment.vertical;
+				} else if (direction === 'horizontal') {
+					anchorAdjustment.horizontal = -anchorAdjustment.horizontal;
+					vesselAdjustment.horizontal = -vesselAdjustment.horizontal;
+				}
+
+				return {
+					anchorAdjustment: anchorAdjustment,
+					vesselAdjustment: vesselAdjustment
+				};
+			}
+		}, {
+			key: '_adjustOffsets',
+			value: function _adjustOffsets(offsets, adjustments) {
+				offsets = (0, _cloneDeep4.default)(offsets);
+
+				var anchorAdjustment = adjustments.anchorAdjustment,
+				    vesselAdjustment = adjustments.vesselAdjustment;
+				var _offsets$anchor = offsets.anchor,
+				    bottom = _offsets$anchor.bottom,
+				    left = _offsets$anchor.left,
+				    right = _offsets$anchor.right,
+				    top = _offsets$anchor.top;
+
+
+				var netHorizontalAdjustment = anchorAdjustment.horizontal - vesselAdjustment.horizontal;
+				var netVerticalAdjustment = anchorAdjustment.vertical - vesselAdjustment.vertical;
+
+				offsets.anchor = {
+					bottom: bottom + netVerticalAdjustment,
+					left: left + netHorizontalAdjustment,
+					right: right + netHorizontalAdjustment,
+					top: top + netVerticalAdjustment
+				};
+
+				return offsets;
+			}
+		}, {
+			key: '_getNewOffsets',
+			value: function _getNewOffsets(offsets, placement) {
+				offsets = (0, _cloneDeep4.default)(offsets);
+
+				var _offsets$anchor2 = offsets.anchor,
+				    bottom = _offsets$anchor2.bottom,
+				    left = _offsets$anchor2.left,
+				    right = _offsets$anchor2.right,
+				    top = _offsets$anchor2.top;
+
+				var newVesselOffsets = { bottom: bottom, left: left, right: right, top: top };
 
 				if (placement.anchor.vertical === 'bottom') {
-					newOffsets.top = newOffsets.bottom;
+					newVesselOffsets.top = newVesselOffsets.bottom;
 				}
 
 				if (placement.anchor.horizontal === 'right') {
-					newOffsets.left = newOffsets.right;
+					newVesselOffsets.left = newVesselOffsets.right;
 				}
 
 				if (placement.vessel.vertical === 'bottom') {
-					newOffsets.top -= this._vessel.offsetHeight;
+					newVesselOffsets.top -= this._vessel.offsetHeight;
 				}
 
 				if (placement.vessel.horizontal === 'right') {
-					newOffsets.left -= this._vessel.offsetWidth;
+					newVesselOffsets.left -= this._vessel.offsetWidth;
 				}
 
-				newOffsets.bottom = newOffsets.top + this._vessel.offsetHeight;
-				newOffsets.right = newOffsets.left + this._vessel.offsetWidth;
+				newVesselOffsets.bottom = newVesselOffsets.top + this._vessel.offsetHeight;
+				newVesselOffsets.right = newVesselOffsets.left + this._vessel.offsetWidth;
 
-				return newOffsets;
+				offsets.vessel = newVesselOffsets;
+
+				return offsets;
 			}
 		}, {
 			key: 'detectCollisions',
@@ -219,79 +290,102 @@ return /******/ (function(modules) { // webpackBootstrap
 			key: 'fixCollisions',
 			value: function fixCollisions(offsets, collisions, collisionStrategy) {
 				var adjustedCollisionStrategy = (0, _clone3.default)(collisionStrategy);
+				var method = adjustedCollisionStrategy.shift();
 
 				var collisionFixers = {
 					flip: this.flip,
 					slide: this.slide
 				};
 
-				var method = adjustedCollisionStrategy.shift();
-				if (!method || typeof collisionFixers[method] !== 'function') {
+				if (!method) {
+					return offsets;
+				}
+
+				if (typeof collisionFixers[method] !== 'function') {
 					throw new Error('Collision strategy ' + method + ' not found');
 				}
 
 				var placement = this._settings.placement;
-				var newOffsets = (0, _cloneDeep3.default)(offsets);
+				var newOffsets = (0, _cloneDeep4.default)(offsets);
 
-				var newVesselOffsets = collisionFixers[method].call(this, offsets, placement, collisions);
+				var newOffsets = collisionFixers[method].call(this, offsets, placement, collisions);
 
-				var collisions = this.detectCollisions(newVesselOffsets);
+				var collisions = this.detectCollisions(newOffsets.vessel);
 				if (collisions) {
 					return this.fixCollisions(offsets, collisions, adjustedCollisionStrategy);
 				}
 
-				return newVesselOffsets;
+				return newOffsets;
 			}
 		}, {
 			key: 'flip',
 			value: function flip(offsets, placement, collisions) {
-				var adjustedPlacement = (0, _cloneDeep3.default)(placement);
+				var adjustments = void 0,
+				    adjustedOffsets = void 0;
+				var adjustedPlacement = (0, _cloneDeep4.default)(placement);
 
 				var flipHorizontally = collisions.right && !collisions.left || collisions.left && !collisions.right;
 				var flipVertically = collisions.bottom && !collisions.top || collisions.top && !collisions.bottom;
 
-				var opposites = {
-					bottom: 'top',
-					center: 'center',
-					left: 'right',
-					right: 'left',
-					top: 'bottom'
-				};
-
 				if (flipHorizontally) {
-					adjustedPlacement.anchor.horizontal = opposites[adjustedPlacement.anchor.horizontal];
-					adjustedPlacement.vessel.horizontal = opposites[adjustedPlacement.vessel.horizontal];
+					adjustedPlacement.anchor.horizontal = OPPOSITES[adjustedPlacement.anchor.horizontal];
+					adjustedPlacement.vessel.horizontal = OPPOSITES[adjustedPlacement.vessel.horizontal];
+					adjustments = this._invertAdjustments(this.adjustments, 'horizontal');
 				}
 
 				if (flipVertically) {
-					adjustedPlacement.anchor.vertical = opposites[adjustedPlacement.anchor.vertical];
-					adjustedPlacement.vessel.vertical = opposites[adjustedPlacement.vessel.vertical];
+					adjustedPlacement.anchor.vertical = OPPOSITES[adjustedPlacement.anchor.vertical];
+					adjustedPlacement.vessel.vertical = OPPOSITES[adjustedPlacement.vessel.vertical];
+					adjustments = this._invertAdjustments(this.adjustments, 'vertical');
 				}
 
-				return this._getNewOffsets(offsets.anchor, adjustedPlacement);
+				adjustedOffsets = this._adjustOffsets(offsets, adjustments);
+				adjustedOffsets = this._getNewOffsets(adjustedOffsets, adjustedPlacement);
+
+				return adjustedOffsets;
 			}
 		}, {
 			key: 'slide',
 			value: function slide(offsets, placement, collisions) {
-				var newVesselOffsets = (0, _cloneDeep3.default)(offsets.vessel);
+				var newVesselOffsets = void 0;
+
+				offsets = (0, _cloneDeep4.default)(offsets);
+				newVesselOffsets = offsets.vessel;
+
+				var vesselWidth = newVesselOffsets.right - newVesselOffsets.left;
+				var vesselHeight = newVesselOffsets.bottom - newVesselOffsets.top;
 
 				if (collisions.left && !collisions.right) {
 					newVesselOffsets.left = offsets.collisionContainer.left;
-					newVesselOffsets.right = newVesselOffsets.left + newVesselOffsets.width;
+					newVesselOffsets.right = newVesselOffsets.left + vesselWidth;
 				} else if (collisions.right && !collisions.left) {
-					newVesselOffsets.left = offsets.collisionContainer.right - offsets.vessel.width;
+					newVesselOffsets.left = offsets.collisionContainer.right - vesselWidth;
 					newVesselOffsets.right = newVesselOffsets.right;
 				}
 
 				if (collisions.top && !collisions.bottom) {
 					newVesselOffsets.top = offsets.collisionContainer.top;
-					newVesselOffsets.bottom = newVesselOffsets.top + newVesselOffsets.height;
+					newVesselOffsets.bottom = newVesselOffsets.top + vesselHeight;
 				} else if (collisions.bottom && !collisions.top) {
 					newVesselOffsets.bottom = offsets.collisionContainer.bottom;
-					newVesselOffsets.top = newVesselOffsets.top - newVesselOffsets.height;
+					newVesselOffsets.top = newVesselOffsets.top - vesselHeight;
 				}
 
-				return newVesselOffsets;
+				return offsets;
+			}
+		}, {
+			key: 'adjustments',
+			get: function get() {
+				if (this._adjustments) {
+					return this._adjustments;
+				}
+
+				this._adjustments = {
+					anchorAdjustment: (0, _assignIn3.default)({}, DEFAULT_ADJUSTMENT, this._settings.anchorAdjustment),
+					vesselAdjustment: (0, _assignIn3.default)({}, DEFAULT_ADJUSTMENT, this._settings.vesselAdjustment)
+				};
+
+				return this._adjustments;
 			}
 		}]);
 
@@ -299,6 +393,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}();
 
 	exports.default = Positioner;
+	exports.DEFAULT_SETTINGS = DEFAULT_SETTINGS;
 
 /***/ },
 /* 2 */
@@ -1879,7 +1974,13 @@ return /******/ (function(modules) { // webpackBootstrap
 				return { bottom: window.innerHeight, left: 0, right: window.innerWidth, top: 0 };
 			}
 
-			return element.getBoundingClientRect();
+			var _element$getBoundingC = element.getBoundingClientRect(),
+			    bottom = _element$getBoundingC.bottom,
+			    left = _element$getBoundingC.left,
+			    right = _element$getBoundingC.right,
+			    top = _element$getBoundingC.top;
+
+			return { bottom: bottom, left: left, right: right, top: top };
 		}
 	};
 	module.exports = exports['default'];
@@ -1893,6 +1994,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 		value: true
 	});
+
+	var _debounce2 = __webpack_require__(55);
+
+	var _debounce3 = _interopRequireDefault(_debounce2);
+
+	var _assignIn2 = __webpack_require__(45);
+
+	var _assignIn3 = _interopRequireDefault(_assignIn2);
 
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -1912,7 +2021,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
-	var DEFAULT_SETTINGS = {};
+	var DEFAULT_SETTINGS = {
+		watchStrategy: {
+			type: 'animation-frame'
+		}
+	};
 
 	var AutoPositioner = function (_Positioner) {
 		_inherits(AutoPositioner, _Positioner);
@@ -1922,11 +2035,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 			var _this = _possibleConstructorReturn(this, (AutoPositioner.__proto__ || Object.getPrototypeOf(AutoPositioner)).call(this, anchor, vessel, settings));
 
+			_this._settings = (0, _assignIn3.default)({}, DEFAULT_SETTINGS, _this._settings);
+
 			_this.reposition();
 
-			if (!_this._settings.noWatch) {
-				_this.startWatching();
-			}
+			_this.startWatching();
 			return _this;
 		}
 
@@ -1945,18 +2058,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 			value: function startWatching() {
 				this._watching = true;
-				this._watch(this.reposition);
+				this._watchCleanup = this._watch(this.reposition);
 			}
 
 			/**
-	   * Disables auto repositioning of the vessel
-	   * @return {[type]} [description]
+	   * Disables auto repositioning of the vessel and cleans up the watch
 	   */
 
 		}, {
 			key: 'stopWatching',
 			value: function stopWatching() {
 				this._watching = false;
+				if (typeof this._watchCleanup === 'function') {
+					this._watchCleanup();
+				}
 			}
 
 			/**
@@ -1973,8 +2088,15 @@ return /******/ (function(modules) { // webpackBootstrap
 		}, {
 			key: '_watch',
 			value: function _watch(callback) {
-				if (this._settings.watchWithAnimationFrame) {
-					this._watchWithAnimationFrame(callback);
+				var watchStrategy = this._settings.watchStrategy;
+
+				switch (watchStrategy.type) {
+					case 'interval':
+						return this._watchWithInterval(callback);
+					case 'events':
+						return this._watchWithEvents(callback);
+					default:
+						return this._watchWithAnimationFrame(callback);
 				}
 			}
 		}, {
@@ -1995,6 +2117,49 @@ return /******/ (function(modules) { // webpackBootstrap
 				});
 			}
 		}, {
+			key: '_watchWithInterval',
+			value: function _watchWithInterval(callback) {
+				var _this2 = this;
+
+				var delay = this._settings.watchStrategy.delay || 120;
+
+				var intervalId = setInterval(function () {
+					if (!_this2._watching) {
+						clearInterval(intervalId);
+						return;
+					}
+
+					callback.call(_this2);
+				}, delay);
+
+				return function () {
+					if (intervalId) {
+						clearInterval(intervalId);
+					}
+				};
+			}
+		}, {
+			key: '_watchWithEvents',
+			value: function _watchWithEvents(callback) {
+				var _this3 = this;
+
+				var watchStrategy = this._settings.watchStrategy;
+
+				var handler = function handler() {
+					callback.call(_this3);
+				};
+
+				var debouncedHandler = (0, _debounce3.default)(handler, watchStrategy.delay || 15);
+
+				window.addEventListener('resize', debouncedHandler);
+				window.addEventListener('scroll', debouncedHandler);
+
+				return function () {
+					window.removeEventListener('resize', debouncedHandler);
+					window.removeEventListener('scroll', debouncedHandler);
+				};
+			}
+		}, {
 			key: 'placement',
 			get: function get() {
 				return this._settings.placement;
@@ -2006,6 +2171,256 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	exports.default = AutoPositioner;
 	module.exports = exports['default'];
+
+/***/ },
+/* 55 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(39),
+	    now = __webpack_require__(56),
+	    toNumber = __webpack_require__(57);
+
+	/** Error message constants. */
+	var FUNC_ERROR_TEXT = 'Expected a function';
+
+	/* Built-in method references for those with the same name as other `lodash` methods. */
+	var nativeMax = Math.max,
+	    nativeMin = Math.min;
+
+	/**
+	 * Creates a debounced function that delays invoking `func` until after `wait`
+	 * milliseconds have elapsed since the last time the debounced function was
+	 * invoked. The debounced function comes with a `cancel` method to cancel
+	 * delayed `func` invocations and a `flush` method to immediately invoke them.
+	 * Provide `options` to indicate whether `func` should be invoked on the
+	 * leading and/or trailing edge of the `wait` timeout. The `func` is invoked
+	 * with the last arguments provided to the debounced function. Subsequent
+	 * calls to the debounced function return the result of the last `func`
+	 * invocation.
+	 *
+	 * **Note:** If `leading` and `trailing` options are `true`, `func` is
+	 * invoked on the trailing edge of the timeout only if the debounced function
+	 * is invoked more than once during the `wait` timeout.
+	 *
+	 * If `wait` is `0` and `leading` is `false`, `func` invocation is deferred
+	 * until to the next tick, similar to `setTimeout` with a timeout of `0`.
+	 *
+	 * See [David Corbacho's article](https://css-tricks.com/debouncing-throttling-explained-examples/)
+	 * for details over the differences between `_.debounce` and `_.throttle`.
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 0.1.0
+	 * @category Function
+	 * @param {Function} func The function to debounce.
+	 * @param {number} [wait=0] The number of milliseconds to delay.
+	 * @param {Object} [options={}] The options object.
+	 * @param {boolean} [options.leading=false]
+	 *  Specify invoking on the leading edge of the timeout.
+	 * @param {number} [options.maxWait]
+	 *  The maximum time `func` is allowed to be delayed before it's invoked.
+	 * @param {boolean} [options.trailing=true]
+	 *  Specify invoking on the trailing edge of the timeout.
+	 * @returns {Function} Returns the new debounced function.
+	 * @example
+	 *
+	 * // Avoid costly calculations while the window size is in flux.
+	 * jQuery(window).on('resize', _.debounce(calculateLayout, 150));
+	 *
+	 * // Invoke `sendMail` when clicked, debouncing subsequent calls.
+	 * jQuery(element).on('click', _.debounce(sendMail, 300, {
+	 *   'leading': true,
+	 *   'trailing': false
+	 * }));
+	 *
+	 * // Ensure `batchLog` is invoked once after 1 second of debounced calls.
+	 * var debounced = _.debounce(batchLog, 250, { 'maxWait': 1000 });
+	 * var source = new EventSource('/stream');
+	 * jQuery(source).on('message', debounced);
+	 *
+	 * // Cancel the trailing debounced invocation.
+	 * jQuery(window).on('popstate', debounced.cancel);
+	 */
+	function debounce(func, wait, options) {
+	  var lastArgs,
+	      lastThis,
+	      maxWait,
+	      result,
+	      timerId,
+	      lastCallTime,
+	      lastInvokeTime = 0,
+	      leading = false,
+	      maxing = false,
+	      trailing = true;
+
+	  if (typeof func != 'function') {
+	    throw new TypeError(FUNC_ERROR_TEXT);
+	  }
+	  wait = toNumber(wait) || 0;
+	  if (isObject(options)) {
+	    leading = !!options.leading;
+	    maxing = 'maxWait' in options;
+	    maxWait = maxing ? nativeMax(toNumber(options.maxWait) || 0, wait) : maxWait;
+	    trailing = 'trailing' in options ? !!options.trailing : trailing;
+	  }
+
+	  function invokeFunc(time) {
+	    var args = lastArgs,
+	        thisArg = lastThis;
+
+	    lastArgs = lastThis = undefined;
+	    lastInvokeTime = time;
+	    result = func.apply(thisArg, args);
+	    return result;
+	  }
+
+	  function leadingEdge(time) {
+	    // Reset any `maxWait` timer.
+	    lastInvokeTime = time;
+	    // Start the timer for the trailing edge.
+	    timerId = setTimeout(timerExpired, wait);
+	    // Invoke the leading edge.
+	    return leading ? invokeFunc(time) : result;
+	  }
+
+	  function remainingWait(time) {
+	    var timeSinceLastCall = time - lastCallTime,
+	        timeSinceLastInvoke = time - lastInvokeTime,
+	        result = wait - timeSinceLastCall;
+
+	    return maxing ? nativeMin(result, maxWait - timeSinceLastInvoke) : result;
+	  }
+
+	  function shouldInvoke(time) {
+	    var timeSinceLastCall = time - lastCallTime,
+	        timeSinceLastInvoke = time - lastInvokeTime;
+
+	    // Either this is the first call, activity has stopped and we're at the
+	    // trailing edge, the system time has gone backwards and we're treating
+	    // it as the trailing edge, or we've hit the `maxWait` limit.
+	    return (lastCallTime === undefined || (timeSinceLastCall >= wait) ||
+	      (timeSinceLastCall < 0) || (maxing && timeSinceLastInvoke >= maxWait));
+	  }
+
+	  function timerExpired() {
+	    var time = now();
+	    if (shouldInvoke(time)) {
+	      return trailingEdge(time);
+	    }
+	    // Restart the timer.
+	    timerId = setTimeout(timerExpired, remainingWait(time));
+	  }
+
+	  function trailingEdge(time) {
+	    timerId = undefined;
+
+	    // Only invoke if we have `lastArgs` which means `func` has been
+	    // debounced at least once.
+	    if (trailing && lastArgs) {
+	      return invokeFunc(time);
+	    }
+	    lastArgs = lastThis = undefined;
+	    return result;
+	  }
+
+	  function cancel() {
+	    if (timerId !== undefined) {
+	      clearTimeout(timerId);
+	    }
+	    lastInvokeTime = 0;
+	    lastArgs = lastCallTime = lastThis = timerId = undefined;
+	  }
+
+	  function flush() {
+	    return timerId === undefined ? result : trailingEdge(now());
+	  }
+
+	  function debounced() {
+	    var time = now(),
+	        isInvoking = shouldInvoke(time);
+
+	    lastArgs = arguments;
+	    lastThis = this;
+	    lastCallTime = time;
+
+	    if (isInvoking) {
+	      if (timerId === undefined) {
+	        return leadingEdge(lastCallTime);
+	      }
+	      if (maxing) {
+	        // Handle invocations in a tight loop.
+	        timerId = setTimeout(timerExpired, wait);
+	        return invokeFunc(lastCallTime);
+	      }
+	    }
+	    if (timerId === undefined) {
+	      timerId = setTimeout(timerExpired, wait);
+	    }
+	    return result;
+	  }
+	  debounced.cancel = cancel;
+	  debounced.flush = flush;
+	  return debounced;
+	}
+
+	module.exports = debounce;
+
+
+/***/ },
+/* 56 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var root = __webpack_require__(25);
+
+	/**
+	 * Gets the timestamp of the number of milliseconds that have elapsed since
+	 * the Unix epoch (1 January 1970 00:00:00 UTC).
+	 *
+	 * @static
+	 * @memberOf _
+	 * @since 2.4.0
+	 * @category Date
+	 * @returns {number} Returns the timestamp.
+	 * @example
+	 *
+	 * _.defer(function(stamp) {
+	 *   console.log(_.now() - stamp);
+	 * }, _.now());
+	 * // => Logs the number of milliseconds it took for the deferred invocation.
+	 */
+	var now = function() {
+	  return root.Date.now();
+	};
+
+	module.exports = now;
+
+
+/***/ },
+/* 57 */
+/***/ function(module, exports) {
+
+	/**
+	 * This method returns the first argument it receives.
+	 *
+	 * @static
+	 * @since 0.1.0
+	 * @memberOf _
+	 * @category Util
+	 * @param {*} value Any value.
+	 * @returns {*} Returns `value`.
+	 * @example
+	 *
+	 * var object = { 'a': 1 };
+	 *
+	 * console.log(_.identity(object) === object);
+	 * // => true
+	 */
+	function identity(value) {
+	  return value;
+	}
+
+	module.exports = identity;
+
 
 /***/ }
 /******/ ])

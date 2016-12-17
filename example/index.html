@@ -31,6 +31,7 @@
 		}
 		
 		[dropdown-list] {
+			background-color: #fff;
 			border: 1px solid #F1F1F1;
 			box-shadow: 0px 1px 2px 0 rgba(224, 224, 224, 0.5);
 			border-radius: 2px;
@@ -80,19 +81,25 @@
 	<script type="text/javascript" src="/dist/shank.js"></script>
 
 	<script type="text/javascript">
-		var autoPositioner = new Shank.AutoPositioner(
+		window.positioner = new Shank.AutoPositioner(
 			'[dropdown-trigger]',
 			'[dropdown-list]', {
-				watchWithAnimationFrame: true,
 				placement: {
 					anchor: {
-						vertical: 'bottom',
+						vertical: 'top',
 						horizontal: 'left'
 					},
 					vessel: {
-						vertical: 'top',
+						vertical: 'bottom',
 						horizontal: 'left'
 					}
+				},
+				vesselAdjustment: {
+					vertical: 10
+				},
+				watchStrategy: {
+					type: 'interval',
+					delay: 1000
 				}
 			}
 		);

@@ -19,6 +19,7 @@ export default {
 			return {bottom: window.innerHeight, left: 0, right: window.innerWidth, top: 0};
 		}
 		
-		return element.getBoundingClientRect();
+		let {bottom, left, right, top} = element.getBoundingClientRect();
+		return {bottom, left, right, top};
 	}
 }
