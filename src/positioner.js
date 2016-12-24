@@ -1,5 +1,5 @@
 'use strict';
-import {assignIn, clone, cloneDeep} from 'lodash';
+import {assignIn, clone, cloneDeep, noop} from 'lodash';
 import Utils from './utils';
 
 const OPPOSITES = {
@@ -22,6 +22,9 @@ const DEFAULT_SETTINGS = {
 		'flip',
 		'slide'
 	],
+	onCollision: noop,
+	onCollisionFix: noop,
+	onCollisionFail: noop,
 	offsets: {
 		vertical: 0,
 		horizontal: 0
@@ -70,19 +73,33 @@ class Positioner {
 	}
 	
 	position() {
-		this._vessel.style.position = 'fixed';
+		let offsets, newOffsets, collisions;
+
+		this._prepareVessel();
 		
-		let offsets = this._getCurrentOffsets();
-		let newOffsets = this._adjustOffsets(offsets, this.adjustments);
+		offsets = this._getCurrentOffsets();
+		
+		newOffsets = this._adjustOffsets(offsets, this.adjustments);
 		newOffsets = this._getNewOffsets(newOffsets, this._settings.placement);
 		
-		let collisions = this.detectCollisions(newOffsets.vessel);
+		collisions = this.detectCollisions(newOffsets.vessel);
 		if(collisions) {
+			if (typeof this._settings.onCollision === 'function') {
+				this._settings.onCollision();
+			}
 			newOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
 		}
 		
 		this._vessel.style.left = newOffsets.vessel.left + 'px';
 		this._vessel.style.top = newOffsets.vessel.top + 'px';
+	}
+
+	_prepareVessel() {
+		if (this._vessel.parentNode !== document.body) {
+			document.body.appendChild(this._vessel);
+		}
+
+		this._vessel.style.position = 'fixed';
 	}
 	
 	_getCurrentOffsets() {
@@ -173,15 +190,21 @@ class Positioner {
 	}
 	
 	fixCollisions(offsets, collisions, collisionStrategy) {
-		var adjustedCollisionStrategy = clone(collisionStrategy);
-		var method = adjustedCollisionStrategy.shift();
+		let settings = this._settings;
+		let adjustedCollisionStrategy = clone(collisionStrategy);
+		let method = adjustedCollisionStrategy.shift();
 		
-		var collisionFixers = {
+		let newOffsets = null;
+
+		let collisionFixers = {
 			flip: this.flip,
 			slide: this.slide
 		};
 		
 		if (!method) {
+			if (typeof settings.onCollisionFail === 'function') {
+				settings.onCollisionFail();
+			}
 			return offsets;
 		}
 		
@@ -189,14 +212,15 @@ class Positioner {
 			throw new Error(`Collision strategy ${method} not found`);
 		}
 		
-		var placement = this._settings.placement;
-		var newOffsets = cloneDeep(offsets);
+		newOffsets = collisionFixers[method].call(this, offsets, settings.placement, collisions);
+		collisions = this.detectCollisions(newOffsets.vessel);
 		
-		var newOffsets = collisionFixers[method].call(this, offsets, placement, collisions);
-		
-		var collisions = this.detectCollisions(newOffsets.vessel);
 		if(collisions) {
 			return this.fixCollisions(offsets, collisions, adjustedCollisionStrategy);
+		}
+
+		if (typeof settings.onCollisionFix === 'function') {
+			settings.onCollisionFix(method);
 		}
 		
 		return newOffsets;
