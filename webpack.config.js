@@ -1,30 +1,31 @@
 var path = require('path');
 var webpack = require('webpack');
 
-var LodashModuleReplacementPlugin = require('lodash-webpack-plugin');
-
 module.exports = {
-	entry: './src/index.js',
+	entry: path.resolve(__dirname, 'src/index.js'),
 	output: {
-		path: './dist',
+		path: path.resolve(__dirname, 'dist/'),
 		filename: 'shank.js',
 		library: 'Shank',
 		libraryTarget: 'umd',
 		umdNamedDefine: true
 	},
 	module: {
-		loaders: [{
-			loader: 'babel',
+		rules: [
+			{
+				loader: 'babel-loader',
 
-			include: [
-				path.resolve(__dirname, 'src/'),
-			],
+				include: [
+					path.resolve(__dirname, 'src/'),
+				],
 
-			test: /\.js$/,
-		}]
+				test: /\.js$/,
+			}
+		]
 	},
 	plugins: [
-		new LodashModuleReplacementPlugin(),
-		new webpack.optimize.UglifyJsPlugin()
+		new webpack.optimize.UglifyJsPlugin({
+			sourceMap: true
+		})
 	]
 };

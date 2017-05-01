@@ -1,6 +1,7 @@
-'use strict';
+import {assign} from 'lodash/assign';
+import {assignIn} from 'lodash/assignIn'
+import {debounce} from 'lodash/debounce';
 
-import {assign, assignIn, debounce} from 'lodash';
 import Positioner from './positioner';
 import Utils from './utils';
 
@@ -13,9 +14,9 @@ const DEFAULT_SETTINGS = {
 class AutoPositioner extends Positioner {
 	constructor(anchor, vessel, settings) {
 		super(anchor, vessel, settings);
-		
+
 		this._settings = assignIn({}, DEFAULT_SETTINGS, this._settings);
-		
+
 		this.reposition();
 
 		this.startWatching();
@@ -28,7 +29,7 @@ class AutoPositioner extends Positioner {
 	get placement() {
 		return this._settings.placement;
 	}
-	
+
 	/**
 	 * Enables auto repositioning of the vessel (useful for when the anchor moves)
 	 */
@@ -58,9 +59,9 @@ class AutoPositioner extends Positioner {
 
 	_watch(callback) {
 		var watchStrategy = this._settings.watchStrategy;
-		
+
 		switch(watchStrategy.type) {
-			case 'interval': 
+			case 'interval':
 				return this._watchWithInterval(callback);
 			case 'events':
 				return this._watchWithEvents(callback);
@@ -68,11 +69,11 @@ class AutoPositioner extends Positioner {
 				return this._watchWithAnimationFrame(callback);
 		}
 	}
-	
+
 	_watchWithAnimationFrame(callback) {
 		let self = this;
 		let shimmedAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function(callback){ window.setTimeout(callback, 1000 / 60); };
-		
+
 		if (!this._watching) {
 			return;
 		}
@@ -82,42 +83,46 @@ class AutoPositioner extends Positioner {
 			self._watchWithAnimationFrame(callback);
 		});
 	}
-	
+
 	_watchWithInterval(callback) {
 		let delay = this._settings.watchStrategy.delay || 120;
-		
+
 		let intervalId = setInterval(() => {
 			if (!this._watching) {
 				clearInterval(intervalId);
 				return;
 			}
-			
+
 			callback.call(this);
 		}, delay);
-		
+
 		return () => {
 			if (intervalId) {
 				clearInterval(intervalId);
 			}
 		}
 	}
-	
+
 	_watchWithEvents(callback) {
 		let watchStrategy = this._settings.watchStrategy;
-		
+
 		let handler = () => {
 			callback.call(this);
 		};
-		
+
 		let debouncedHandler = debounce(handler, watchStrategy.delay || 15);
-		
+
 		window.addEventListener('resize', debouncedHandler);
 		window.addEventListener('scroll', debouncedHandler);
-		
+
 		return () => {
 			window.removeEventListener('resize', debouncedHandler);
 			window.removeEventListener('scroll', debouncedHandler);
 		};
+	}
+
+	static crap() {
+		return Utils.poop();
 	}
 }
 
