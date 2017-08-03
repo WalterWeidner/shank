@@ -19,13 +19,15 @@ module.exports = {
 					path.resolve(__dirname, 'src/'),
 				],
 
+				options: {
+					presets: [
+						[ 'es2015', { modules: false } ]
+					]
+				},
+
 				test: /\.js$/,
 			}
 		]
 	},
-	plugins: [
-		new webpack.optimize.UglifyJsPlugin({
-			sourceMap: true
-		})
-	]
+	plugins: []
 };
