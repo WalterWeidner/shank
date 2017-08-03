@@ -15,15 +15,30 @@ export default {
 	},
 
 	getOffsets(element) {
+		let scrollTop, scrollLeft;
+
 		if(element === window) {
-			return {bottom: window.innerHeight, left: 0, right: window.innerWidth, top: 0};
+			scrollLeft = window.scrollX;
+			scrollTop = window.scrollY;
+
+			return {
+				bottom: window.innerHeight + scrollTop,
+				left: 0 + scrollLeft,
+				right: window.innerWidth + scrollLeft,
+				top: 0 + scrollTop
+			};
 		}
 
-		let {bottom, left, right, top} = element.getBoundingClientRect();
-		return {bottom, left, right, top};
-	},
+		const {bottom, left, right, top} = element.getBoundingClientRect();
 
-	poop() {
-		return false;
+		scrollTop = document.body.scrollTop;
+		scrollLeft = document.body.scrollLeft;
+
+		return {
+			bottom: bottom + scrollTop,
+			left: left + scrollLeft,
+			right: right + scrollLeft,
+			top: top + scrollTop
+		};
 	}
 }

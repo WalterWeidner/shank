@@ -1,13 +1,12 @@
-import {assign} from 'lodash/assign';
-import {assignIn} from 'lodash/assignIn'
-import {debounce} from 'lodash/debounce';
+import assignIn from 'lodash/assignIn'
+import debounce from 'lodash/debounce';
 
 import Positioner from './positioner';
 import Utils from './utils';
 
 const DEFAULT_SETTINGS = {
 	watchStrategy: {
-		type: 'animation-frame'
+		type: 'events'
 	}
 };
 
@@ -119,10 +118,6 @@ class AutoPositioner extends Positioner {
 			window.removeEventListener('resize', debouncedHandler);
 			window.removeEventListener('scroll', debouncedHandler);
 		};
-	}
-
-	static crap() {
-		return Utils.poop();
 	}
 }
 

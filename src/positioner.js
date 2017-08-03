@@ -1,7 +1,7 @@
-import {assignIn} from 'lodash/assignIn';
-import {clone} from 'lodash/clone';
-import {cloneDeep} from 'lodash/cloneDeep';
-import {noop} from 'lodash/noop';
+import assignIn from 'lodash/assignIn';
+import clone from 'lodash/clone';
+import cloneDeep from 'lodash/cloneDeep';
+import noop from 'lodash/noop';
 
 import Utils from './utils';
 
@@ -59,6 +59,7 @@ class Positioner {
 
 		this._anchor = Utils.getElement(anchor);
 		this._vessel = Utils.getElement(vessel);
+
 		this._collisionContainer = (this._settings.collisionContainer) ? Utils.getElement(this._settings.collisionContainer) : undefined;
 	}
 
@@ -76,32 +77,6 @@ class Positioner {
 	}
 
 	/**
-	 * Adjusts the position of the vessel so that it matches the relative positioning
-	 * defined in the settings.
-	 */
-	position() {
-		let offsets, newOffsets, collisions;
-
-		this._prepareVessel();
-
-		offsets = this._getCurrentOffsets();
-
-		newOffsets = this._adjustOffsets(offsets, this.adjustments);
-		newOffsets = this._getNewOffsets(newOffsets, this._settings.placement);
-
-		collisions = this.detectCollisions(newOffsets.vessel);
-		if(collisions) {
-			if (typeof this._settings.onCollision === 'function') {
-				this._settings.onCollision();
-			}
-			newOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
-		}
-
-		this._vessel.style.left = newOffsets.vessel.left + 'px';
-		this._vessel.style.top = newOffsets.vessel.top + 'px';
-	}
-
-	/**
 	 * Appends the vessel to the body so that it doesn't run into any overflow
 	 * issues. Also gives the vessel a fixed position.
 	 */
@@ -110,7 +85,7 @@ class Positioner {
 			document.body.appendChild(this._vessel);
 		}
 
-		this._vessel.style.position = 'fixed';
+		this._vessel.style.position = 'absolute';
 	}
 
 	/**
@@ -125,31 +100,40 @@ class Positioner {
 		};
 	}
 
+	/**
+	 * Inverts the adjustments using a direction string
+	 * @param  {object} adjustments The adjustments to invert
+	 * @param  {string} direction   The direction to invert by
+	 * @return {object}             The adjusted offsets
+	 */
 	_invertAdjustments(adjustments, direction) {
 		let {anchorAdjustment, vesselAdjustment} = cloneDeep(adjustments);
 
 		if (direction === 'vertical') {
 			anchorAdjustment.vertical = -anchorAdjustment.vertical;
-			vesselAdjustment.vertical = - vesselAdjustment.vertical;
+			vesselAdjustment.vertical = -vesselAdjustment.vertical;
 		} else if (direction === 'horizontal') {
 			anchorAdjustment.horizontal = -anchorAdjustment.horizontal;
 			vesselAdjustment.horizontal = -vesselAdjustment.horizontal;
 		}
 
-		return {
-			anchorAdjustment: anchorAdjustment,
-			vesselAdjustment: vesselAdjustment
-		};
+		return {anchorAdjustment, vesselAdjustment};
 	}
 
+	/**
+	 * Adjusts the offsets according to the desired adjustments
+	 * @param  {object} offsets     The offsets to adjust
+	 * @param  {object} adjustments The adjustments to make
+	 * @return {object}             Adjusted offsets
+	 */
 	_adjustOffsets(offsets, adjustments) {
 		offsets = cloneDeep(offsets);
 
-		let {anchorAdjustment, vesselAdjustment} = adjustments;
-		let {bottom, left, right, top} = offsets.anchor;
+		const {anchorAdjustment, vesselAdjustment} = adjustments;
+		const {bottom, left, right, top} = offsets.anchor;
 
-		let netHorizontalAdjustment = anchorAdjustment.horizontal - vesselAdjustment.horizontal;
-		let netVerticalAdjustment = anchorAdjustment.vertical - vesselAdjustment.vertical;
+		const netHorizontalAdjustment = anchorAdjustment.horizontal - vesselAdjustment.horizontal;
+		const netVerticalAdjustment = anchorAdjustment.vertical - vesselAdjustment.vertical;
 
 		offsets.anchor = {
 			bottom: bottom + netVerticalAdjustment,
@@ -161,11 +145,14 @@ class Positioner {
 		return offsets;
 	}
 
+	/**
+	 * Gets new offsets based on a specified placement
+	 * @param  {object} offsets   The offsets to operate on
+	 * @param  {object} placement The desired placement of the anchor/vessel
+	 * @return {object}           A new set of offsets
+	 */
 	_getNewOffsets(offsets, placement) {
-		offsets = cloneDeep(offsets);
-
-		let {bottom, left, right, top} = offsets.anchor;
-		let newVesselOffsets = {bottom, left, right, top};
+		let newVesselOffsets = cloneDeep(offsets.anchor);
 
 		if(placement.anchor.vertical === 'bottom') {
 			newVesselOffsets.top = newVesselOffsets.bottom;
@@ -186,24 +173,92 @@ class Positioner {
 		newVesselOffsets.bottom = newVesselOffsets.top + this._vessel.offsetHeight;
 		newVesselOffsets.right = newVesselOffsets.left + this._vessel.offsetWidth;
 
+		offsets = cloneDeep(offsets);
 		offsets.vessel = newVesselOffsets;
 
 		return offsets;
 	}
 
-	detectCollisions(vesselOffsets) {
-		let containerOffset = Utils.getOffsets(this._collisionContainer);
+	/**
+	 * Makes the offset adjustments in the DOM
+	 * @param  {object} newOffsets The new offsets to set
+	 */
+	_updatePosition(newOffsets) {
+		const {left, top} = newOffsets.vessel;
+
+		if (this._oldVesselLeft !== left || this._oldVesselTop !== top) {
+			this._vessel.style.left = left + 'px';
+			this._vessel.style.top = top + 'px';
+
+			this._oldVesselLeft = left;
+			this._oldVesselTop = top;
+		}
+	}
+
+	/**
+	 * Adjusts the position of the vessel so that it matches the relative positioning
+	 * defined in the settings.
+	 */
+	position() {
+		let offsets, newOffsets, collisions;
+
+		this._prepareVessel();
+
+		offsets = this._getCurrentOffsets();
+
+		newOffsets = this._adjustOffsets(offsets, this.adjustments);
+		newOffsets = this._getNewOffsets(newOffsets, this._settings.placement);
+
+		collisions = this.detectCollisions(newOffsets);
+		if(collisions) {
+			if (typeof this._settings.onCollision === 'function') {
+				this._settings.onCollision();
+			}
+			newOffsets = this.fixCollisions(offsets, collisions, this._settings.collisionStrategy);
+		}
+
+		this._updatePosition(newOffsets);
+	}
+
+	/**
+	 * Determines which collisions exist with the collisionContainer
+	 * @param  {object} offsets Offsets for the anchor/vessel/collisionContainer
+	 * @return {object}         Collisions that were detecte
+	 */
+	detectCollisions(offsets) {
+		let {
+			anchor: anchorOffsets,
+			collisionContainer: containerOffsets,
+			vessel: vesselOffsets
+		} = offsets;
+
+		if (
+			!containerOffsets ||
+			anchorOffsets.top > containerOffsets.bottom ||
+			anchorOffsets.right < containerOffsets.left ||
+			anchorOffsets.bottom < containerOffsets.top ||
+			anchorOffsets.left > containerOffsets.right
+		) {
+			return;
+		}
 
 		let collisions = {
-			bottom: containerOffset.bottom < vesselOffsets.bottom || containerOffset.bottom < vesselOffsets.top,
-			left: containerOffset.left > vesselOffsets.left || containerOffset.left > vesselOffsets.right,
-			right: containerOffset.right < vesselOffsets.right || containerOffset.right < vesselOffsets.left,
-			top: containerOffset.top > vesselOffsets.top || containerOffset.top > vesselOffsets.bottom
+			bottom: containerOffsets.bottom < vesselOffsets.bottom || containerOffsets.bottom < vesselOffsets.top,
+			left: containerOffsets.left > vesselOffsets.left || containerOffsets.left > vesselOffsets.right,
+			right: containerOffsets.right < vesselOffsets.right || containerOffsets.right < vesselOffsets.left,
+			top: containerOffsets.top > vesselOffsets.top || containerOffsets.top > vesselOffsets.bottom
 		};
 
 		return (collisions.bottom || collisions.left || collisions.right || collisions.top) ? collisions : undefined;
 	}
 
+	/**
+	 * Applies the collisionStrategy to the given offsets based on which collisions have been detected
+	 * @param  {object} offsets           The offsets that have caused a collision
+	 * @param  {object} collisions        The collisions that were detected
+	 * @param  {object} collisionStrategy The collision strategy to use
+	 * @return {object}                   Corrected offsets
+	 */
 	fixCollisions(offsets, collisions, collisionStrategy) {
 		let settings = this._settings;
 		let adjustedCollisionStrategy = clone(collisionStrategy);
@@ -228,7 +283,7 @@ class Positioner {
 		}
 
 		newOffsets = collisionFixers[method].call(this, offsets, settings.placement, collisions);
-		collisions = this.detectCollisions(newOffsets.vessel);
+		collisions = this.detectCollisions(newOffsets);
 
 		if(collisions) {
 			return this.fixCollisions(offsets, collisions, adjustedCollisionStrategy);
@@ -240,7 +295,6 @@ class Positioner {
 
 		return newOffsets;
 	}
-
 
 	/**
 	 * This collision strategy method will attempt to flip the vessel across its
@@ -289,14 +343,13 @@ class Positioner {
 		offsets = cloneDeep(offsets);
 		newVesselOffsets = offsets.vessel;
 
-		let vesselWidth = newVesselOffsets.right - newVesselOffsets.left;
-		let vesselHeight = newVesselOffsets.bottom - newVesselOffsets.top;
+		const vesselWidth = newVesselOffsets.right - newVesselOffsets.left;
+		const vesselHeight = newVesselOffsets.bottom - newVesselOffsets.top;
 
 		if(collisions.left && !collisions.right) {
 			newVesselOffsets.left = offsets.collisionContainer.left;
 			newVesselOffsets.right = newVesselOffsets.left + vesselWidth;
-		}
-		else if(collisions.right && !collisions.left) {
+		} else if(collisions.right && !collisions.left) {
 			newVesselOffsets.left = offsets.collisionContainer.right - vesselWidth;
 			newVesselOffsets.right = newVesselOffsets.right;
 		}
@@ -304,8 +357,7 @@ class Positioner {
 		if(collisions.top && !collisions.bottom) {
 			newVesselOffsets.top = offsets.collisionContainer.top;
 			newVesselOffsets.bottom = newVesselOffsets.top + vesselHeight;
-		}
-		else if(collisions.bottom && !collisions.top) {
+		} else if(collisions.bottom && !collisions.top) {
 			newVesselOffsets.bottom = offsets.collisionContainer.bottom;
 			newVesselOffsets.top = newVesselOffsets.top - vesselHeight;
 		}
